@@ -1,5 +1,8 @@
-﻿using SQLite;
+﻿using Life.Network;
+using ModKit.Utils;
+using SQLite;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sponsorship.Entities
 {
@@ -7,11 +10,13 @@ namespace Sponsorship.Entities
     {
         [AutoIncrement][PrimaryKey] public int Id { get; set; }
 
-        public int PlayerId { get; set; }
-        public string DiscordUsername { get; set; }
+        public string PlayerSteamId { get; set; }
+        public string PlayerFullName { get; set; }
 
         public int MentorId { get; set; }
-        
+        public string MentorFullName { get; set; }
+        public bool MentorRewardClaimed {  get; set; }
+
         public string MenteePlayers { get; set; }
         [Ignore]
         public List<int> LMenteePlayers { get; set; } = new List<int>();
@@ -19,8 +24,24 @@ namespace Sponsorship.Entities
         public int ConnectionCount { get; set; }
         public int LastConnection { get; set; }
 
-        public string CreatedAt { get; set; }
+        public long CreatedAt { get; set; }
 
         public Sponsorship_Player() { }
+
+        public static Task<bool> Create(Sponsorship_Player currentPlayer, Player player)
+        {
+            currentPlayer.PlayerSteamId = player.steamId.ToString();
+            currentPlayer.PlayerFullName = player.GetFullName();
+            currentPlayer.MentorId = 0;
+            currentPlayer.MentorFullName = "";
+            currentPlayer.MentorRewardClaimed = false;
+            currentPlayer.LMenteePlayers = new List<int>();
+            currentPlayer.MenteePlayers = ListConverter.WriteJson(currentPlayer.LMenteePlayers);
+            currentPlayer.ConnectionCount = 1;
+            currentPlayer.LastConnection = DateUtils.GetNumericalDateOfTheDay();
+            currentPlayer.CreatedAt = DateUtils.GetCurrentTime();
+
+            return currentPlayer.Save();
+        }
     }
 }

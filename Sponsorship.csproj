@@ -56,6 +56,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\SponsorshipConfig.cs" />
+    <Compile Include="Entities\Sponsorship_Reward.cs" />
     <Compile Include="Entities\Sponsorship_Player.cs" />
     <Compile Include="Points\Sponsorship_Point.cs" />
     <Compile Include="Sponsorship.cs" />

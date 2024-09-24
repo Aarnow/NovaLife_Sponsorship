@@ -8,6 +8,8 @@ using mk = ModKit.Helper.TextFormattingHelper;
 using System.Collections.Generic;
 using System.Linq;
 using Life;
+using Sponsorship.Entities;
+using ModKit.Utils;
 
 namespace Sponsorship.Points
 {
@@ -46,8 +48,200 @@ namespace Sponsorship.Points
         /// <param name="player">The player interacting with the point.</param>
         public void OnPlayerTrigger(Player player)
         {
-            //code
+            SponsorshipPanel(player);
         }
+
+        #region CUSTOM
+        public async void SponsorshipPanel(Player player)
+        {
+            //Query
+            List<Sponsorship_Player> query = await Sponsorship_Player.Query(p => p.PlayerSteamId == player.steamId.ToString());
+            Sponsorship_Player currentPlayer = new Sponsorship_Player();
+            if (query != null && query.Count > 0) currentPlayer = query[0];
+            else { currentPlayer.LMenteePlayers = ListConverter.ReadJson(currentPlayer.MenteePlayers); }
+
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage", UIPanel.PanelType.Text, player, () => SponsorshipPanel(player));
+
+            //Corps & Boutons
+            if (currentPlayer.Id != default)
+            {
+                panel.TextLines.Add($"Bonjour {player.GetFullName()}"); //Parler du systeme de parrainage
+                panel.TextLines.Add($"{(currentPlayer.MentorId != default ? $"Vous êtes parrainé par {currentPlayer.MentorFullName}" : "Vous n'avez pas de parrain")}");
+                panel.TextLines.Add($"Vous avez {currentPlayer.LMenteePlayers.Count} filleul{(currentPlayer.LMenteePlayers.Count > 1 ? "s":"")}");
+
+                panel.NextButton("Parrain", () => SponsorshipMentor(player, currentPlayer));
+                panel.NextButton("Filleuls", () => SponsorshipMentee(player, currentPlayer));
+                panel.NextButton("Récompenses", () => SponsorshipReward(player, currentPlayer));
+            } else
+            {
+                panel.TextLines.Add("Bienvenue sur ModRP"); //Parler du systeme de parrainage
+                panel.TextLines.Add("Inscrivez-vous pour parrainer vos amis et définir votre parrain");
+
+                panel.NextButton("S'inscrire", async () =>
+                {
+                    if(await Sponsorship_Player.Create(currentPlayer, player))
+                    {
+                        player.Notify("Parrainage", "Vous êtes éligible au programme de parraiange", NotificationManager.Type.Success);
+                        panel.Refresh();
+                    } else
+                    {
+                        player.Notify("Parrainage", "Nous n'avons pas pu enregistrer votre inscription", NotificationManager.Type.Error);
+                        panel.Refresh();
+                    }
+                });
+            }
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+
+        public void SponsorshipMentor(Player player, Sponsorship_Player currentPlayer)
+        {
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage - Parrain", UIPanel.PanelType.Text, player, () => SponsorshipMentor(player, currentPlayer));
+
+            //Corps & Boutons
+            if(currentPlayer.MentorId != default)
+            {
+                panel.TextLines.Add($"Parrain: {currentPlayer.MentorFullName}");
+                if(currentPlayer.ConnectionCount >= 5 && !currentPlayer.MentorRewardClaimed)
+                {
+                    panel.TextLines.Add($"Tu es éligible à la récompense de bienvenue !");
+                    panel.TextLines.Add($"Cette récompense est unique, fais en bonne usage.");
+
+                    panel.NextButton("Récompense", async () =>
+                    {
+                        currentPlayer.MentorRewardClaimed = true;
+                        await currentPlayer.Save();
+
+                        player.AddBankMoney(Sponsorship._sponsorshipConfig.MentorReward);
+                        panel.Refresh();
+                    });
+                } else
+                {
+                    panel.TextLines.Add($"Vous devez avoir 5 jours d'anciennetés pour être éligible à la récompense de bienvenue.");
+                }
+            } else
+            {
+                panel.TextLines.Add($"Chaque citoyen peut être parrainé");
+                panel.TextLines.Add($"Une fois votre parrain selectionné, il n'est plus possible d'en changer");
+
+                panel.NextButton("Suivant", () => SponsorshipMentorSearch(player, currentPlayer));
+            }
+
+            //Boutons
+            panel.PreviousButton();
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+
+        public async void SponsorshipMentorSearch(Player player, Sponsorship_Player currentPlayer)
+        {
+            //Query
+            List<Sponsorship_Player> query = await Sponsorship_Player.QueryAll();
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage - Chercher un parrain", UIPanel.PanelType.TabPrice, player, () => SponsorshipMentorSearch(player, currentPlayer));
+
+            //Corps
+            if (query != null & query.Count > 0)
+            {
+                foreach (Sponsorship_Player mentor in query)
+                {
+                    panel.AddTabLine($"{mentor.PlayerFullName}", _ => SponsorshipMentorSearchConfirm(player, currentPlayer, mentor));
+                }
+                panel.NextButton("Sélectionner", () => panel.SelectTab());
+            }
+            else panel.AddTabLine("Aucun parrain n'est disponible", _ => { });
+
+            //Boutons
+            panel.PreviousButton();
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+
+        public void SponsorshipMentorSearchConfirm(Player player, Sponsorship_Player currentPlayer, Sponsorship_Player currentMentor)
+        {
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage - Confirmation du parrain", UIPanel.PanelType.Text, player, () => SponsorshipMentorSearchConfirm(player, currentPlayer, currentMentor));
+
+            //Corps
+            panel.TextLines.Add("Êtes-vous sûr de vouloir être parrainé par:");
+            panel.TextLines.Add($"{mk.Color($"{currentMentor.PlayerFullName}", mk.Colors.Info)}");
+            panel.TextLines.Add("Vous ne pourrez pas revenir sur cette décision.");
+
+
+            //Boutons
+            panel.PreviousButtonWithAction("Confirmer", async () =>
+            {
+                currentPlayer.MentorId = currentMentor.Id;
+                currentPlayer.MentorFullName = currentMentor.PlayerFullName;
+
+                currentMentor.LMenteePlayers.Add(currentPlayer.Id);
+                currentMentor.MenteePlayers = ListConverter.WriteJson(currentMentor.LMenteePlayers);
+
+                if(await currentPlayer.Save() && await currentMentor.Save())
+                {
+                    player.Notify("Parrainage", "Parrainage enregistré", NotificationManager.Type.Success);
+                    return true;
+                }else
+                {
+                    player.Notify("Parrainage", "Nous n'avons pas pu enregistrer votre demande de parrainage", NotificationManager.Type.Error);
+                    return false;
+                }
+            });
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+
+        public async void SponsorshipMentee(Player player, Sponsorship_Player currentPlayer)
+        {
+            //Query
+            List<Sponsorship_Player> query = await Sponsorship_Player.QueryAll();
+
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage - Filleuls", UIPanel.PanelType.TabPrice, player, () => SponsorshipMentee(player, currentPlayer));
+
+            //Corps
+            if (currentPlayer.LMenteePlayers != null && currentPlayer.LMenteePlayers.Count > 0)
+            {
+                foreach (int menteeId in currentPlayer.LMenteePlayers)
+                {
+                    var currentMentee = query.Where(m => m.Id == menteeId).FirstOrDefault();
+                    if(currentMentee != null) panel.AddTabLine($"{currentMentee.PlayerFullName}", $"{currentMentee.ConnectionCount} jour{(currentMentee.ConnectionCount>1?"s":"")} d'activité", IconUtils.Others.None.Id, _ => { });
+                }
+            }
+            else panel.AddTabLine("Aucun filleul", _ => { });
+
+            //Boutons
+            panel.PreviousButton();
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+
+        public void SponsorshipReward(Player player, Sponsorship_Player currentPlayer)
+        {
+            //Déclaration
+            Panel panel = Context.PanelHelper.Create("Parrainage - Récompenses", UIPanel.PanelType.TabPrice, player, () => SponsorshipReward(player, currentPlayer));
+
+            //Corps
+
+            //Boutons
+            panel.CloseButton();
+
+            //Affichage
+            panel.Display();
+        }
+        #endregion
 
         /// <summary>
         /// Triggers the function to begin creating a new model.
