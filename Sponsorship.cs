@@ -7,6 +7,7 @@ using ModKit.Utils;
 using Socket.Newtonsoft.Json;
 using Sponsorship.Classes;
 using Sponsorship.Entities;
+using Sponsorship.Points;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -34,6 +35,10 @@ namespace Sponsorship
 
             Orm.RegisterTable<Sponsorship_Player>();
             Orm.RegisterTable<Sponsorship_Reward>();
+
+            Orm.RegisterTable<Sponsorship_Point>();
+            PointHelper.AddPattern("Sponsorship_Point", new Sponsorship_Point(false));
+            AAMenu.AAMenu.menu.AddBuilder(PluginInformations, "Sponsorship_Point", new Sponsorship_Point(false), this);
 
             InsertMenu();
 
