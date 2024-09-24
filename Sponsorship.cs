@@ -49,7 +49,7 @@ namespace Sponsorship
                 ConfigSponsorshipPath = Path.Combine(ConfigDirectoryPath, "sponsorshipConfig.json");
 
                 if (!Directory.Exists(ConfigDirectoryPath)) Directory.CreateDirectory(ConfigDirectoryPath);
-                if (!File.Exists(ConfigSponsorshipPath)) InitDailyPrestigeConfig();
+                if (!File.Exists(ConfigSponsorshipPath)) InitSponsorshipConfig();
             }
             catch (IOException ex)
             {
@@ -57,7 +57,7 @@ namespace Sponsorship
             }
         }
 
-        private void InitDailyPrestigeConfig()
+        private void InitSponsorshipConfig()
         {
             SponsorshipConfig sponsorshipConfig = new SponsorshipConfig();
             string json = JsonConvert.SerializeObject(sponsorshipConfig);
@@ -86,6 +86,7 @@ namespace Sponsorship
             });
         }
 
+        #region PANELS
         public void SponsorshipPanel(Player player)
         {
             //Déclaration
@@ -170,13 +171,13 @@ namespace Sponsorship
             panel.Display();
         }
 
-        
+
 
         #region SETTERS
         public void RewardSetItem(Player player, Sponsorship_Reward reward)
         {
             //Déclaration
-            Panel panel = PanelHelper.Create($"DailyPrestige - Récompense", UIPanel.PanelType.Input, player, () => RewardSetItem(player, reward));
+            Panel panel = PanelHelper.Create($"Sponsorship - Récompense", UIPanel.PanelType.Input, player, () => RewardSetItem(player, reward));
 
             //Corps
             panel.TextLines.Add("Définir l'ID de l'objet et le nombre à offrir en récompense");
@@ -203,30 +204,30 @@ namespace Sponsorship
 
                             if (await reward.Save())
                             {
-                                player.Notify("DailyStorage", "récompense enregistrée", NotificationManager.Type.Success);
+                                player.Notify("Sponsorship", "récompense enregistrée", NotificationManager.Type.Success);
                                 return true;
                             }
                             else
                             {
-                                player.Notify("DailyStorage", "Nous n'avons pas pu enregistrer votre récompense", NotificationManager.Type.Error);
+                                player.Notify("Sponsorship", "Nous n'avons pas pu enregistrer votre récompense", NotificationManager.Type.Error);
                                 return false;
                             }
                         }
                         else
                         {
-                            player.Notify("DailyStorage", "La quantité à fournir doit être supérieure", NotificationManager.Type.Warning);
+                            player.Notify("Sponsorship", "La quantité à fournir doit être supérieure", NotificationManager.Type.Warning);
                             return false;
                         }
                     }
                     else
                     {
-                        player.Notify("DailyStorage", "L'objet renseigné n'existe pas", NotificationManager.Type.Warning);
+                        player.Notify("Sponsorship", "L'objet renseigné n'existe pas", NotificationManager.Type.Warning);
                         return false;
                     }
                 }
                 else
                 {
-                    player.Notify("DailyStorage", "Format incorrect", NotificationManager.Type.Warning);
+                    player.Notify("Sponsorship", "Format incorrect", NotificationManager.Type.Warning);
                     return false;
                 }
             });
@@ -283,6 +284,7 @@ namespace Sponsorship
             //Affichage
             panel.Display();
         }
+        #endregion
         #endregion
     }
 }

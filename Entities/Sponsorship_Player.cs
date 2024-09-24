@@ -21,6 +21,10 @@ namespace Sponsorship.Entities
         [Ignore]
         public List<int> LMenteePlayers { get; set; } = new List<int>();
 
+        public string RewardRecovered { get; set; }
+        [Ignore]
+        public List<int> LRewardRecovered { get; set; } = new List<int>();
+
         public int ConnectionCount { get; set; }
         public int LastConnection { get; set; }
 
@@ -37,6 +41,8 @@ namespace Sponsorship.Entities
             currentPlayer.MentorRewardClaimed = false;
             currentPlayer.LMenteePlayers = new List<int>();
             currentPlayer.MenteePlayers = ListConverter.WriteJson(currentPlayer.LMenteePlayers);
+            currentPlayer.LRewardRecovered = new List<int>();
+            currentPlayer.RewardRecovered = ListConverter.WriteJson(currentPlayer.LRewardRecovered);
             currentPlayer.ConnectionCount = 1;
             currentPlayer.LastConnection = DateUtils.GetNumericalDateOfTheDay();
             currentPlayer.CreatedAt = DateUtils.GetCurrentTime();

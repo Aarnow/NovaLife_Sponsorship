@@ -10,6 +10,7 @@ using System.Linq;
 using Life;
 using Sponsorship.Entities;
 using ModKit.Utils;
+using Life.InventorySystem;
 
 namespace Sponsorship.Points
 {
@@ -58,7 +59,11 @@ namespace Sponsorship.Points
             List<Sponsorship_Player> query = await Sponsorship_Player.Query(p => p.PlayerSteamId == player.steamId.ToString());
             Sponsorship_Player currentPlayer = new Sponsorship_Player();
             if (query != null && query.Count > 0) currentPlayer = query[0];
-            else { currentPlayer.LMenteePlayers = ListConverter.ReadJson(currentPlayer.MenteePlayers); }
+            else
+            {
+                currentPlayer.LMenteePlayers = ListConverter.ReadJson(currentPlayer.MenteePlayers);
+                currentPlayer.LRewardRecovered = ListConverter.ReadJson(currentPlayer.RewardRecovered);
+            }
 
             //Déclaration
             Panel panel = Context.PanelHelper.Create("Parrainage", UIPanel.PanelType.Text, player, () => SponsorshipPanel(player));
@@ -228,17 +233,74 @@ namespace Sponsorship.Points
             panel.Display();
         }
 
-        public void SponsorshipReward(Player player, Sponsorship_Player currentPlayer)
+        public async void SponsorshipReward(Player player, Sponsorship_Player currentPlayer)
         {
-            //Déclaration
-            Panel panel = Context.PanelHelper.Create("Parrainage - Récompenses", UIPanel.PanelType.TabPrice, player, () => SponsorshipReward(player, currentPlayer));
+            List<Sponsorship_Reward> query = await Sponsorship_Reward.QueryAll();
+            var rewards = query.OrderBy(p => p.MenteeRequired);
 
-            //Corps
+            List<Sponsorship_Player> allPlayers = await Sponsorship_Player.QueryAll();
+            int count = 0;
+            foreach (var menteeId in currentPlayer.LMenteePlayers)
+            {
+                var result = allPlayers.Where(m => m.Id == menteeId && m.ConnectionCount >= Sponsorship._sponsorshipConfig.ConnectionCountRequired).FirstOrDefault();
+                if(result != null) count++;
+            }
 
-            //Boutons
+            Panel panel = Context.PanelHelper.Create($"Parrainage - Récompenses", UIPanel.PanelType.TabPrice, player, () => SponsorshipReward(player, currentPlayer));
+
+            panel.AddTabLine($"{mk.Italic($"{mk.Size($"{mk.Color($"FILLEULS CONFIRMÉS {count}", mk.Colors.Info)}", 21)}")}", _ => { });
+
+            foreach (var reward in rewards)
+            {
+                Item currentItem = ItemUtils.GetItemById(reward.ItemId);
+                bool claimed = currentPlayer.LRewardRecovered.Contains(reward.Id);
+
+                panel.AddTabLine($"{reward.ItemQuantity} x {currentItem.itemName}", $"{(claimed ? $"{mk.Color("récompense récupérée", mk.Colors.Grey)}" : $"requiert {reward.MenteeRequired} filleul{(reward.MenteeRequired>1?"s":"")}")}", ItemUtils.GetIconIdByItemId(reward.ItemId), async _ =>
+                {
+                    if (claimed)
+                    {
+                        player.Notify("Parrainage", "Vous avez déjà récupéré cette récompense", NotificationManager.Type.Info);
+                        panel.Refresh();
+                    }
+                    else
+                    {
+                        if (count >= reward.MenteeRequired)
+                        {
+                            if (InventoryUtils.AddItem(player, reward.ItemId, reward.ItemQuantity))
+                            {
+                                currentPlayer.LRewardRecovered.Add(reward.Id);
+                                currentPlayer.RewardRecovered = ListConverter.WriteJson(currentPlayer.LRewardRecovered);
+                                if (await currentPlayer.Save())
+                                {
+                                    player.Notify("Parrainage", $"Vous venez d'obtenir {reward.ItemQuantity} {currentItem.itemName}", NotificationManager.Type.Success);
+                                    panel.Refresh();
+                                }
+                                else
+                                {
+                                    InventoryUtils.RemoveFromInventory(player, reward.ItemId, reward.ItemQuantity);
+                                    player.Notify("Parrainage", "Nous n'avons pas pu enregistrer votre récompense", NotificationManager.Type.Error);
+                                    panel.Refresh();
+                                }
+                            }
+                            else
+                            {
+                                player.Notify("Parrainage", "Vous n'avez pas suffisament d'espace dans votre inventaire", NotificationManager.Type.Warning);
+                                panel.Refresh();
+                            }
+                        }
+                        else
+                        {
+                            player.Notify("Parrainage", "Vous n'avez pas suffisament de prestige", NotificationManager.Type.Info);
+                            panel.Refresh();
+                        }
+                    }
+                });
+            }
+
+            panel.AddButton("Récupérer", _ => panel.SelectTab());
+            panel.PreviousButton();
             panel.CloseButton();
 
-            //Affichage
             panel.Display();
         }
         #endregion
