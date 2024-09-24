@@ -68,9 +68,9 @@ namespace Sponsorship.Points
                 currentPlayer[0].LRewardRecovered = ListConverter.ReadJson(currentPlayer[0].RewardRecovered);
                 currentPlayer[0].LMenteePlayers = ListConverter.ReadJson(currentPlayer[0].MenteePlayers);
 
-                panel.TextLines.Add($"Bonjour {player.GetFullName()}"); //Parler du systeme de parrainage
-                panel.TextLines.Add($"{(currentPlayer[0].MentorId != default ? $"Vous êtes parrainé par {currentPlayer[0].MentorFullName}" : "Vous n'avez pas de parrain")}");
-                panel.TextLines.Add($"Vous avez {currentPlayer[0].LMenteePlayers.Count} filleul{(currentPlayer[0].LMenteePlayers.Count > 1 ? "s":"")}");
+                panel.TextLines.Add($"Bonjour {mk.Color(player.GetFullName(), mk.Colors.Orange)}"); //Parler du systeme de parrainage
+                panel.TextLines.Add($"{(currentPlayer[0].MentorId != default ? $"Vous êtes parrainé par {mk.Color(currentPlayer[0].MentorFullName, mk.Colors.Info)}" : $"Vous n'avez {mk.Color("pas de parrain", mk.Colors.Info)}")}");
+                panel.TextLines.Add($"Vous avez {mk.Color($"{currentPlayer[0].LMenteePlayers.Count} filleul{(currentPlayer[0].LMenteePlayers.Count > 1 ? "s" : "")}", mk.Colors.Info)}");
 
                 panel.NextButton("Parrain", () => SponsorshipMentor(player, currentPlayer[0]));
                 panel.NextButton("Filleuls", () => SponsorshipMentee(player, currentPlayer[0]));
@@ -78,8 +78,8 @@ namespace Sponsorship.Points
             }
             else
             {
-                panel.TextLines.Add("Bienvenue sur ModRP"); //Parler du systeme de parrainage
-                panel.TextLines.Add("Inscrivez-vous pour parrainer vos amis et définir votre parrain");
+                panel.TextLines.Add($"Bienvenue en ville !"); //Parler du systeme de parrainage
+                panel.TextLines.Add("Inscrivez-vous pour parrainer vos amis et définir votre parrain !");
 
                 panel.NextButton("S'inscrire", async () =>
                 {
@@ -123,7 +123,7 @@ namespace Sponsorship.Points
             if(currentPlayer.MentorId != default)
             {
                 panel.TextLines.Add($"{mk.Color("Parrain:", mk.Colors.Info)} {currentPlayer.MentorFullName}");
-                if(currentPlayer.ConnectionCount >= 5 && !currentPlayer.MentorRewardClaimed)
+                if(currentPlayer.ConnectionCount >= Sponsorship._sponsorshipConfig.ConnectionCountRequired && !currentPlayer.MentorRewardClaimed)
                 {
                     panel.TextLines.Add($"Tu es éligible à la récompense de bienvenue !");
                     panel.TextLines.Add($"Cette récompense est unique, fais en bonne usage.");
@@ -160,6 +160,7 @@ namespace Sponsorship.Points
         {
             //Query
             List<Sponsorship_Player> query = await Sponsorship_Player.QueryAll();
+            query.RemoveAll(p => p.PlayerSteamId == player.steamId.ToString());
             //Déclaration
             Panel panel = Context.PanelHelper.Create("Parrainage - Chercher un parrain", UIPanel.PanelType.TabPrice, player, () => SponsorshipMentorSearch(player, currentPlayer));
 
@@ -194,23 +195,24 @@ namespace Sponsorship.Points
 
 
             //Boutons
-            panel.NextButton("Confirmer", async () =>
+            panel.CloseButtonWithAction("Confirmer", async () =>
             {
                 currentPlayer.MentorId = currentMentor.Id;
                 currentPlayer.MentorFullName = currentMentor.PlayerFullName;
 
-                currentMentor.LMenteePlayers.Add(currentPlayer.Id);
+                currentMentor.LMenteePlayers = ListConverter.ReadJson(currentMentor.MenteePlayers);
+                if(!currentMentor.LMenteePlayers.Contains(currentPlayer.Id)) currentMentor.LMenteePlayers.Add(currentPlayer.Id);
                 currentMentor.MenteePlayers = ListConverter.WriteJson(currentMentor.LMenteePlayers);
 
                 if(await currentPlayer.Save() && await currentMentor.Save())
                 {
                     player.Notify("Parrainage", "Parrainage enregistré", NotificationManager.Type.Success);
-                    SponsorshipMentor(player, currentPlayer);
+                    return true;
                 }
                 else
                 {
                     player.Notify("Parrainage", "Nous n'avons pas pu enregistrer votre demande de parrainage", NotificationManager.Type.Error);
-                    panel.Refresh();
+                    return false;
                 }
             });
             panel.CloseButton();

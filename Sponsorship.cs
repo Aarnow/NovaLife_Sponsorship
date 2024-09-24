@@ -1,4 +1,5 @@
 ﻿using Life;
+using Life.DB;
 using Life.Network;
 using Life.UI;
 using ModKit.Helper;
@@ -18,6 +19,8 @@ namespace Sponsorship
 {
     public class Sponsorship : ModKit.ModKit
     {
+        bool hodor = false;
+
         public static string ConfigDirectoryPath;
         public static string ConfigSponsorshipPath;
         public static SponsorshipConfig _sponsorshipConfig;
@@ -43,6 +46,26 @@ namespace Sponsorship
             InsertMenu();
 
             ModKit.Internal.Logger.LogSuccess($"{PluginInformations.SourceName} v{PluginInformations.Version}", "initialisé");
+        }
+
+        public async override void OnPlayerSpawnCharacter(Player player, Mirror.NetworkConnection conn, Characters character)
+        {
+            base.OnPlayerSpawnCharacter(player, conn, character);
+
+            if(!hodor) NetworkAreaHelper.SetServerDoorState("110d8269-1106-4c37-bc54-b15c598cd989-1288", true, true);
+
+            var steamId = player.steamId.ToString();
+            List<Sponsorship_Player> currentPlayer = await Sponsorship_Player.Query(p => p.PlayerSteamId == steamId);
+            if(currentPlayer != null)
+            {
+                int currentDate = DateUtils.GetNumericalDateOfTheDay();
+                if (currentPlayer[0].LastConnection != currentDate)
+                {
+                    currentPlayer[0].LastConnection = currentDate;
+                    currentPlayer[0].ConnectionCount += 1;
+                    await currentPlayer[0].Save();
+                }
+            }
         }
 
         #region Config
