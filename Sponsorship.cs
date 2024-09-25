@@ -122,6 +122,11 @@ namespace Sponsorship
 
             //Corps
             panel.AddTabLine("Liste des récompenses", _ => SponsorshipPanelReward(player));
+            panel.AddTabLine($"{mk.Color("Appliquer la configuration", mk.Colors.Info)}", _ =>
+            {
+                _sponsorshipConfig = LoadConfigFile(ConfigSponsorshipPath);
+                panel.Refresh();
+            });
 
             panel.NextButton("Sélectionner", () => panel.SelectTab());
             panel.AddButton("Retour", _ => AAMenu.AAMenu.menu.AdminPanel(player, AAMenu.AAMenu.menu.AdminTabLines));
@@ -162,7 +167,6 @@ namespace Sponsorship
             //Affichage
             panel.Display();
         }
-
         public void SponsorshipPanelRewardDetails(Player player, Sponsorship_Reward reward = null)
         {
             if (reward == null) reward = new Sponsorship_Reward();
@@ -198,8 +202,6 @@ namespace Sponsorship
             //Affichage
             panel.Display();
         }
-
-
 
         #region SETTERS
         public void RewardSetItem(Player player, Sponsorship_Reward reward)
