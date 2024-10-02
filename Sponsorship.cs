@@ -9,6 +9,7 @@ using Socket.Newtonsoft.Json;
 using Sponsorship.Classes;
 using Sponsorship.Entities;
 using Sponsorship.Points;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -56,7 +57,7 @@ namespace Sponsorship
 
             var steamId = player.steamId.ToString();
             List<Sponsorship_Player> currentPlayer = await Sponsorship_Player.Query(p => p.PlayerSteamId == steamId);
-            if(currentPlayer != null)
+            if(currentPlayer != null && currentPlayer.Count > 0 && currentPlayer[0] != null)
             {
                 int currentDate = DateUtils.GetNumericalDateOfTheDay();
                 if (currentPlayer[0].LastConnection != currentDate)
@@ -107,7 +108,7 @@ namespace Sponsorship
 
         public void InsertMenu()
         {
-            _menu.AddAdminTabLine(PluginInformations, 5, "Sponsorship", (ui) =>
+            _menu.AddAdminPluginTabLine(PluginInformations, 5, "Sponsorship", (ui) =>
             {
                 Player player = PanelHelper.ReturnPlayerFromPanel(ui);
                 SponsorshipPanel(player);
@@ -129,7 +130,7 @@ namespace Sponsorship
             });
 
             panel.NextButton("Sélectionner", () => panel.SelectTab());
-            panel.AddButton("Retour", _ => AAMenu.AAMenu.menu.AdminPanel(player, AAMenu.AAMenu.menu.AdminTabLines));
+            panel.AddButton("Retour", _ => AAMenu.AAMenu.menu.AdminPluginPanel(player, AAMenu.AAMenu.menu.AdminPluginTabLines));
             panel.CloseButton();
 
             //Affichage
